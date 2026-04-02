@@ -1,0 +1,67 @@
+version: 2
+
+models:
+  - name: master_users
+    description: "Master users - deduplicated with deterministic key"
+    columns:
+      - name: user_master_id
+        description: "Deterministic MD5 key"
+        tests:
+          - unique
+          - not_null
+
+      - name: user_source_id
+        description: "Original source user ID"
+        tests:
+          - not_null
+
+  - name: master_products
+    description: "Master products - deduplicated with normalized category"
+    columns:
+      - name: product_master_id
+        description: "Deterministic MD5 key"
+        tests:
+          - unique
+          - not_null
+
+      - name: category
+        description: "Normalized lowercase category"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['electronics', 'clothing', 'sports', 'home & kitchen', 'toys', 'books', 'beauty']
+
+  - name: master_orders
+    description: "Master orders - canonicalized with USD and GBP prices"
+    columns:
+      - name: order_master_id
+        description: "Deterministic MD5 key"
+        tests:
+          - unique
+          - not_null
+
+      - name: user_master_id
+        description: "FK to master_users"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('master_users')
+                field: user_master_id
+
+      - name: product_master_id
+        description: "FK to master_products"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('master_products')
+                field: product_master_id
+
+      - name: payment_method
+        description: "Payment method used"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Credit Card', 'Debit Card', 'UPI', 'Net Banking', 'Cash on Delivery']

@@ -1,0 +1,22 @@
+name: 'ecommerce_master'
+version: '1.0.0'
+config-version: 2
+
+profile: 'ecommerce_master'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  ecommerce_master:
+    staging:
+      +schema: staging
+      +materialized: view
+    master:
+      +schema: master
+      +materialized: table

@@ -12,3 +12,8 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Environment variables (may contain credentials)
+.env
+
+.user.yml

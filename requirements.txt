@@ -1,2 +1,3 @@
 dbt-core==1.10.20
 dbt-duckdb==1.10.0
+dbt-snowflake==1.10.0

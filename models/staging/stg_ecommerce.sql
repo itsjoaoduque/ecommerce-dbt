@@ -1,6 +1,6 @@
 with source as (
 
-     select * from "dev"."main"."ecommerce_dataset_updated"
+     select * from {{ ref('ecommerce_dataset_updated_clean') }}
 
 ),
 
@@ -10,11 +10,11 @@ renamed as (
         "User_ID"                       as user_id,
         "Product_ID"                    as product_id,
         "Category"                      as category,
-        "Price (Rs.)"                   as price_usd,
-        "Discount (%)"                  as discount_pct,
-        "Final_Price(Rs.)"              as final_price_usd,
+        "Price_Rs."                     as price_usd,
+        "Discount_pct"                  as discount_pct,
+        "Final_PriceRs."                as final_price_usd,
         "Payment_Method"                as payment_method,
-        strptime("Purchase_Date", '%d-%m-%Y')::date   as purchase_date
+        {{ parse_date('"Purchase_Date"', '%d-%m-%Y') }}    as purchase_date
 
     from source
 

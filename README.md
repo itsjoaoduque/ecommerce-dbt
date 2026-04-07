@@ -106,7 +106,7 @@ ecommerce_master/
 `profiles.yml` lives in the project root and is passed via `--profiles-dir .`.
 This means anyone can clone the repo and run immediately without creating
 `~/.dbt/profiles.yml`. Credentials are never hardcoded — all sensitive values
-are read from environment variables via `env_var()`.
+are read from environment variables.
 
 ### Deterministic keys (MD5)
 All master entities use `md5(source_id)` as their surrogate key. This ensures:
@@ -154,20 +154,6 @@ In a production pipeline with order status transitions the recommended approach 
    in master to merge late arrivals without full table rebuilds
 4. **Refunds** modelled as a separate `master_refunds` entity referencing
    `order_master_id`, keeping the original order record immutable
-
-### Metrics for freshness and anomaly detection
-| Metric | Description | Alert threshold |
-|---|---|---|
-| `max(dbt_updated_at)` per model | Data freshness | > 1 hour behind schedule |
-| Row count delta vs previous run | Volume anomaly | ± 20% change |
-| Null rate per critical column | Data quality drift | > 0% on PK/FK columns |
-| Distinct category count | Schema drift | Any new unexpected value |
-| Order count per day | Business anomaly | > 3σ from 30-day average |
-
-These would be implemented via dbt's `freshness` blocks on sources and
-custom Elementary or dbt_utils tests.
-
----
 
 ## What I Would Extend Next
 

@@ -65,18 +65,8 @@ Run `scripts/snowflake_setup.sql` in a Snowflake worksheet **as ACCOUNTADMIN**
 ```sql
 -- in Snowflake UI or SnowSQL:
 -- 1. Open scripts/snowflake_setup.sql
--- 2. Replace <your_password> with the DBT_USER password
--- 3. Run the entire script
+-- 2. Run the entire script
 ```
-
-This creates:
-| Object | Name |
-|---|---|
-| Warehouse | `COMPUTE_WH` |
-| Database | `ECOMMERCE` |
-| Schemas | `RAW`, `STAGING`, `MASTER` |
-| Role | `TRANSFORMER` |
-| User | `DBT_USER` |
 
 Once done, fill in your `.env` with the credentials from the setup script and run:
 ```bash

@@ -3,84 +3,165 @@
 A dbt project that implements a canonical master data layer for an e-commerce domain,
 built on top of raw data landed by a Fivetran-like ingestion tool.
 
+Supports two targets out of the box:
+- **DuckDB** — local development, no credentials needed
+- **Snowflake** — production target, configured via environment variables
+
 ---
 
 ## Stack
 
-- **dbt-core** 1.10.20
-- **dbt-duckdb** 1.10.0 — local development (no setup required)
-- **dbt-snowflake** 1.10.0 — production target
-- **Python** 3.9+
+| Tool | Version | Purpose |
+|---|---|---|
+| dbt-core | 1.10.20 | Transformation framework |
+| dbt-duckdb | 1.10.0 | Local development target |
+| dbt-snowflake | 1.10.0 | Production target |
+| Python | 3.9+ | Runtime |
 
 ---
 
-## Setup & Running
+## Quick Start
 
-### 1. Create and activate virtual environment
+### 1. Clone & create a virtual environment
 ```bash
 python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-```
-
-### 2. Install dependencies
-```bash
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure environment (optional)
+### 2. Configure credentials (Snowflake only)
+```bash
+cp .env.example .env
+# Fill in your Snowflake values in .env
+```
 
-Copy the example env file and fill in your values:
+### 3. Run the pipeline
+
+Use `make` from the `ecommerce_master/` directory:
+
+```bash
+# DuckDB (local, no credentials needed)
+make run_ecommerce_duckdb
+
+# Snowflake (requires .env)
+make run_ecommerce_snowflake
+```
+
+Each command will:
+1. Run `scripts/clean_csv.py` to sanitise CSV column names
+2. Load the seed file into the target warehouse (`dbt seed`)
+3. Build all models (`dbt run`)
+
+---
+
+## Snowflake Setup (first time only)
+
+Before running against Snowflake, a one-time setup is required to create the
+database, schemas, warehouse, role, and user that dbt expects.
+
+Run `scripts/snowflake_setup.sql` in a Snowflake worksheet **as ACCOUNTADMIN**
+(or any role with `CREATE` privileges):
+
+```sql
+-- in Snowflake UI or SnowSQL:
+-- 1. Open scripts/snowflake_setup.sql
+-- 2. Replace <your_password> with the DBT_USER password
+-- 3. Run the entire script
+```
+
+This creates:
+| Object | Name |
+|---|---|
+| Warehouse | `COMPUTE_WH` |
+| Database | `ECOMMERCE` |
+| Schemas | `RAW`, `STAGING`, `MASTER` |
+| Role | `TRANSFORMER` |
+| User | `DBT_USER` |
+
+Once done, fill in your `.env` with the credentials from the setup script and run:
+```bash
+make run_ecommerce_snowflake
+```
+
+---
+
+## Environment Variables
+
+All sensitive values are read from a `.env` file (never hardcoded). Create one from the example:
+
 ```bash
 cp .env.example .env
 ```
 
-By default the project runs on **DuckDB locally** with no credentials needed.
-To use Snowflake, set `DBT_TARGET=snowflake` and fill in the Snowflake variables.
-
-### 4. Run the pipeline
-```bash
-# Load raw data
-dbt seed --profiles-dir .
-
-# Run all models
-dbt run --profiles-dir .
-
-# Run all tests
-dbt test --profiles-dir .
-```
-
-### Switching to Snowflake
-```bash
-cp .env.example .env
-# Edit .env with your Snowflake credentials and set DBT_TARGET=snowflake
-source .env
-
-dbt seed --profiles-dir .
-dbt run --profiles-dir .
-dbt test --profiles-dir .
-```
+| Variable | Description |
+|---|---|
+| `SNOWFLAKE_ACCOUNT` | Snowflake account identifier |
+| `SNOWFLAKE_USER` | Snowflake username |
+| `SNOWFLAKE_PASSWORD` | Snowflake password |
+| `SNOWFLAKE_ROLE` | Role (default: `TRANSFORMER`) |
+| `SNOWFLAKE_DATABASE` | Database (default: `ECOMMERCE`) |
+| `SNOWFLAKE_WAREHOUSE` | Warehouse (default: `COMPUTE_WH`) |
+| `DBT_TARGET` | Active target — `duckdb` or `snowflake` (default: `duckdb`) |
 
 ---
 
 ## Project Structure
+
 ```
 ecommerce_master/
-├── profiles.yml                          # Multi-target profile (DuckDB + Snowflake)
-├── .env.example                          # Environment variable template
-├── requirements.txt                      # Python dependencies
-├── dbt_project.yml                       # dbt project config
+├── Makefile                                 # Convenience commands
+├── dbt_project.yml                          # dbt project config
+├── profiles/
+│   └── profiles.yml                         # Multi-target profile (DuckDB + Snowflake)
+├── requirements.txt                         # Python dependencies
+├── scripts/
+│   └── clean_csv.py                         # Sanitises CSV column names before seeding
+├── macros/
+│   └── parse_date.sql                       # Cross-database date parsing macro
 ├── models/
 │   ├── staging/
-│   │   ├── stg_ecommerce.sql             # Cleans and renames raw source columns
-│   │   └── staging.yml                   # Staging tests
+│   │   ├── stg_ecommerce.sql                # Cleans and renames raw source columns
+│   │   └── staging.yml                      # Staging tests & documentation
 │   └── master/
-│       ├── master_users.sql              # Deduplicated users with MD5 key
-│       ├── master_products.sql           # Normalized products with MD5 key
-│       ├── master_orders.sql             # Canonicalized orders, USD + GBP prices
-│       └── master.yml                    # Master tests
+│       ├── master_users.sql                 # Deduplicated users with MD5 surrogate key
+│       ├── master_products.sql              # Normalised products with MD5 surrogate key
+│       ├── master_orders.sql                # Canonicalised orders with USD & GBP prices
+│       └── master.yml                       # Master tests & documentation
 └── seeds/
-    └── ecommerce_dataset_updated.csv     # Raw source (simulates raw schema)
+    ├── ecommerce_dataset_updated.csv        # Original raw source (disabled)
+    └── ecommerce_dataset_updated_clean.csv  # Sanitised source (active)
 ```
+
+---
+
+## Data Flow
+
+```
+seeds/ecommerce_dataset_updated_clean.csv
+        │
+        ▼
+  stg_ecommerce  (view)      ← rename, cast, parse dates
+        │
+        ├──────────────────┬──────────────────┐
+        ▼                  ▼                  ▼
+  master_users       master_products    master_orders
+    (table)             (table)           (table)
+```
+
+---
+
+## Cross-Database Compatibility
+
+Models use a custom `parse_date` macro that dispatches to the correct
+function per adapter:
+
+| Adapter | Function used |
+|---|---|
+| DuckDB | `strptime(col, '%d-%m-%Y')::date` |
+| Snowflake | `TO_DATE(col, 'DD-MM-YYYY')` |
+
+To add support for another adapter, add a `<adapter>__parse_date` implementation
+in `macros/parse_date.sql`.
 
 ---
 
@@ -102,11 +183,10 @@ ecommerce_master/
 
 ## Design Choices
 
-### Multi-target profiles.yml (no ~/.dbt required)
-`profiles.yml` lives in the project root and is passed via `--profiles-dir .`.
-This means anyone can clone the repo and run immediately without creating
-`~/.dbt/profiles.yml`. Credentials are never hardcoded — all sensitive values
-are read from environment variables.
+### Multi-target profiles (no `~/.dbt` required)
+`profiles/profiles.yml` is passed via `--profiles-dir ./profiles`.
+Anyone can clone the repo and run immediately without touching `~/.dbt/profiles.yml`.
+Credentials are never hardcoded — all sensitive values come from environment variables.
 
 ### Deterministic keys (MD5)
 All master entities use `md5(source_id)` as their surrogate key. This ensures:
@@ -132,11 +212,10 @@ caused by inconsistent capitalisation or whitespace in the source.
 
 ---
 
-## Design Notes (no implementation required)
+## Design Notes
 
 ### SCD2 — best candidates in master_products
-The following attributes are most likely to change over time and benefit from
-SCD2 tracking:
+The following attributes are most likely to change over time and benefit from SCD2 tracking:
 - `price_usd` — prices change frequently
 - `discount_pct` — promotional discounts are temporary
 - `category` — products can be recategorised
@@ -155,9 +234,9 @@ In a production pipeline with order status transitions the recommended approach 
 4. **Refunds** modelled as a separate `master_refunds` entity referencing
    `order_master_id`, keeping the original order record immutable
 
-## What I Would Extend Next
+---
 
-Given double the time, I would prioritise:
+## What I Would Extend Next
 
 1. **Currency seed** — a `seeds/exchange_rates.csv` with daily USD→GBP rates
    joined on `purchase_date` instead of a fixed 0.75 rate

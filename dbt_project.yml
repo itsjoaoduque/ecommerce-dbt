@@ -20,3 +20,10 @@ models:
     master:
       +schema: master
       +materialized: table
+
+seeds:
+  ecommerce_master:
+    ecommerce_dataset_updated:
+      +enabled: false
+    ecommerce_dataset_updated_clean:
+      +quote_columns: true

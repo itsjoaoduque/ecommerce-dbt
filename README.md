@@ -54,6 +54,8 @@ Each command will:
 2. Load the seed file into the target warehouse (`dbt seed`)
 3. Build all models (`dbt run`)
 
+> The Python script simulates the sanitisation that would normally happen at ingestion time — in production, Fivetran or a custom connector would land data with clean column names. The script makes the seed portable across adapters without touching the original source file.
+
 ---
 
 ## Make Commands

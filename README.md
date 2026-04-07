@@ -25,6 +25,27 @@ Supports two targets out of the box:
 
 ## Quick Start
 
+---
+
+## Snowflake Setup (first time only)
+
+Before running against Snowflake, a one-time setup is required to create the
+database, schemas, warehouse, role, and user that dbt expects.
+
+Run `scripts/snowflake_setup.sql` in a Snowflake worksheet **as ACCOUNTADMIN**
+(or any role with `CREATE` privileges):
+
+```sql
+-- in Snowflake UI or SnowSQL:
+-- 1. Open scripts/snowflake_setup.sql
+-- 2. Run the entire script
+```
+
+Once done, fill in your `.env` with the credentials from the setup script and run:
+```bash
+make run_ecommerce_snowflake
+```
+
 ### 1. Clone & create a virtual environment
 ```bash
 python3 -m venv venv
@@ -68,27 +89,6 @@ Each command will:
 | `make test_duckdb` | Run all dbt tests on DuckDB |
 | `make test_snowflake` | Run all dbt tests on Snowflake |
 | `make test_all` | Run all dbt tests on both targets |
-
----
-
-## Snowflake Setup (first time only)
-
-Before running against Snowflake, a one-time setup is required to create the
-database, schemas, warehouse, role, and user that dbt expects.
-
-Run `scripts/snowflake_setup.sql` in a Snowflake worksheet **as ACCOUNTADMIN**
-(or any role with `CREATE` privileges):
-
-```sql
--- in Snowflake UI or SnowSQL:
--- 1. Open scripts/snowflake_setup.sql
--- 2. Run the entire script
-```
-
-Once done, fill in your `.env` with the credentials from the setup script and run:
-```bash
-make run_ecommerce_snowflake
-```
 
 ---
 

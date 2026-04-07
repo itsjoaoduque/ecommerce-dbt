@@ -1,5 +1,4 @@
 ecommerce_master:
-  #target: "{{ env_var('DBT_TARGET', 'duckdb') }}"
   outputs:
 
     duckdb:

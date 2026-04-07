@@ -54,6 +54,18 @@ Each command will:
 
 ---
 
+## Make Commands
+
+| Command | Description |
+|---|---|
+| `make run_ecommerce_duckdb` | Prepare, seed and run all models on DuckDB |
+| `make run_ecommerce_snowflake` | Prepare, seed and run all models on Snowflake |
+| `make test_duckdb` | Run all dbt tests on DuckDB |
+| `make test_snowflake` | Run all dbt tests on Snowflake |
+| `make test_all` | Run all dbt tests on both targets |
+
+---
+
 ## Snowflake Setup (first time only)
 
 Before running against Snowflake, a one-time setup is required to create the
@@ -105,7 +117,8 @@ ecommerce_master/
 │   └── profiles.yml                         # Multi-target profile (DuckDB + Snowflake)
 ├── requirements.txt                         # Python dependencies
 ├── scripts/
-│   └── clean_csv.py                         # Sanitises CSV column names before seeding
+│   ├── clean_csv.py                         # Sanitises CSV column names before seeding
+│   └── snowflake_setup.sql                  # One-time Snowflake setup (DB, schemas, role, user)
 ├── macros/
 │   └── parse_date.sql                       # Cross-database date parsing macro
 ├── models/

@@ -15,3 +15,13 @@ run_ecommerce_snowflake: prepare
 run_ecommerce_duckdb: prepare
 	cd $(ROOT_DIR) && dbt seed --profiles-dir ./profiles --target duckdb
 	cd $(ROOT_DIR) && dbt run --profiles-dir ./profiles --target duckdb
+
+test_duckdb: prepare
+	cd $(ROOT_DIR) && dbt test --profiles-dir ./profiles --target duckdb
+
+test_snowflake: prepare
+	cd $(ROOT_DIR) && dbt test --profiles-dir ./profiles --target snowflake
+
+test_all:
+	$(MAKE) test_duckdb
+	$(MAKE) test_snowflake

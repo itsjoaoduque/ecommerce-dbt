@@ -8,6 +8,7 @@ Supports two targets out of the box:
 - **Snowflake** — production target, configured via environment variables
 
 > For a detailed breakdown of layer design, key decisions, and scalability considerations see [ARCHITECTURE.md](./ARCHITECTURE.md).
+> For backfill strategy, replay guarantees, and incremental model guidance see [BACKFILL.md](./BACKFILL.md).
 
 ---
 
@@ -117,6 +118,7 @@ cp .env.example .env
 ecommerce_master/
 ├── Makefile                                 # Convenience commands
 ├── ARCHITECTURE.md                          # Layer design, key decisions, scalability notes
+├── BACKFILL.md                              # Backfill strategy, replay guarantees, incremental guidance
 ├── dbt_project.yml                          # dbt project config
 ├── profiles/
 │   └── profiles.yml                         # Multi-target profile (DuckDB + Snowflake)

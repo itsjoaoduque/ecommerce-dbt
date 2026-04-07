@@ -7,6 +7,8 @@ Supports two targets out of the box:
 - **DuckDB** — local development, no credentials needed
 - **Snowflake** — production target, configured via environment variables
 
+> For a detailed breakdown of layer design, key decisions, and scalability considerations see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ---
 
 ## Stack
@@ -112,6 +114,7 @@ cp .env.example .env
 ```
 ecommerce_master/
 ├── Makefile                                 # Convenience commands
+├── ARCHITECTURE.md                          # Layer design, key decisions, scalability notes
 ├── dbt_project.yml                          # dbt project config
 ├── profiles/
 │   └── profiles.yml                         # Multi-target profile (DuckDB + Snowflake)

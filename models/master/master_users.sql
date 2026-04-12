@@ -25,7 +25,7 @@ deduped as (
 final as (
 
     select
-        md5(user_id)        as user_master_id,
+        {{ generate_surrogate_key(['user_id']) }}   as user_master_id,
         user_id             as user_source_id,
         order_count,
         first_order_date,

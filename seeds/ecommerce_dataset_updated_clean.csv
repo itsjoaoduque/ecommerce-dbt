@@ -1,5 +1,5 @@
 User_ID,Product_ID,Category,Price_Rs.,Discount_pct,Final_PriceRs.,Payment_Method,Purchase_Date
-337c166f,f414122f-e,Sports,100.0,15,85.00,Net Banking,12-11-2024
+337c166f,f414122f-e,Sports,36.53,15,31.05,Net Banking,12-11-2024
 d38a19bf,fde50f9c-5,Clothing,232.79,20,186.23,Net Banking,09-02-2024
 d7f5f0b0,0d96fc90-3,Sports,317.02,25,237.76,Credit Card,01-09-2024
 395d4994,964fc44b-d,Toys,173.19,25,129.89,UPI,01-04-2024

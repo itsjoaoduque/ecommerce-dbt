@@ -45,7 +45,7 @@ normalized as (
 final as (
 
     select
-        md5(product_id)         as product_master_id,
+        {{ generate_surrogate_key(['product_id']) }}   as product_master_id,
         product_id              as product_source_id,
         category,
         price_usd,

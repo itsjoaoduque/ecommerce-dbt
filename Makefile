@@ -9,12 +9,10 @@ prepare:
 	cd $(ROOT_DIR) && python scripts/clean_csv.py
 
 run_ecommerce_snowflake: prepare
-	cd $(ROOT_DIR) && dbt seed --profiles-dir ./profiles --target snowflake
-	cd $(ROOT_DIR) && dbt run --profiles-dir ./profiles --target snowflake
+	dbt seed --profiles-dir ./profiles --target snowflake && dbt run --profiles-dir ./profiles --target snowflake
 
 run_ecommerce_duckdb: prepare
-	cd $(ROOT_DIR) && dbt seed --profiles-dir ./profiles --target duckdb
-	cd $(ROOT_DIR) && dbt run --profiles-dir ./profiles --target duckdb
+	dbt seed --profiles-dir ./profiles --target duckdb && dbt run --profiles-dir ./profiles --target duckdb
 
 test_duckdb: prepare
 	cd $(ROOT_DIR) && dbt test --profiles-dir ./profiles --target duckdb

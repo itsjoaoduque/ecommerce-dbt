@@ -36,10 +36,10 @@ deduped as (
 with_keys as (
 
     select
-        md5(user_id || '-' || product_id || '-' || cast(purchase_date as varchar))
+        {{ generate_surrogate_key(['user_id', 'product_id', 'cast(purchase_date as varchar)']) }}
                                     as order_master_id,
-        md5(user_id)                as user_master_id,
-        md5(product_id)             as product_master_id,
+        {{ generate_surrogate_key(['user_id']) }}    as user_master_id,
+        {{ generate_surrogate_key(['product_id']) }} as product_master_id,
         purchase_date,
         price_usd,
         discount_pct,

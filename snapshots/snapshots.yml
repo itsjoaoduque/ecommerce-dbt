@@ -1,0 +1,42 @@
+version: 2
+
+snapshots:
+  - name: products_snapshot
+    description: >
+      SCD2 snapshot of master_products. Tracks changes to price_usd,
+      discount_pct, and category over time.
+    columns:
+      - name: dbt_scd_id
+        description: Unique identifier for each snapshot row (surrogate key for this version)
+        tests:
+          - unique
+          - not_null
+
+      - name: product_source_id
+        description: Source system product identifier
+        tests:
+          - not_null
+
+      - name: product_master_id
+        description: MD5 surrogate key from master_products
+        tests:
+          - not_null
+
+      - name: dbt_valid_from
+        description: Timestamp when this version became active
+        tests:
+          - not_null
+
+      - name: dbt_valid_to
+        description: Timestamp when this version was superseded (null = current record)
+        # not_null not applied here — null means the record is still active
+
+      - name: price_usd
+        tests:
+          - not_null
+
+      - name: category
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['electronics', 'clothing', 'sports', 'home & kitchen', 'toys', 'books', 'beauty']

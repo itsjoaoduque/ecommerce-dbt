@@ -30,7 +30,7 @@ final as (
         order_count,
         first_order_date,
         last_order_date,
-        current_timestamp   as dbt_updated_at
+        current_timestamp   as record_updated_at
 
     from deduped
 

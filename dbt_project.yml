@@ -27,3 +27,7 @@ seeds:
       +enabled: false
     ecommerce_dataset_updated_clean:
       +quote_columns: true
+
+snapshots:
+  ecommerce_master:
+    +target_schema: snapshots

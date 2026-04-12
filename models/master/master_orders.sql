@@ -65,7 +65,7 @@ final as (
         price_gbp,
         final_price_gbp,
         discount_pct,
-        current_timestamp           as dbt_updated_at
+        current_timestamp           as record_updated_at
 
     from with_keys
 

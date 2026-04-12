@@ -51,7 +51,7 @@ final as (
         price_usd,
         discount_pct,
         final_price_usd,
-        current_timestamp       as dbt_updated_at
+        current_timestamp       as record_updated_at
 
     from normalized
 

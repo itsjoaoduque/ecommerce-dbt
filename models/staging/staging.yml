@@ -24,6 +24,16 @@ models:
         tests:
           - not_null
 
+      - name: discount_pct
+        description: "Discount percentage applied"
+        tests:
+          - not_null
+
+      - name: final_price_usd
+        description: "Final price after discount in USD"
+        tests:
+          - not_null
+
       - name: purchase_date
         description: "Date of purchase"
         tests:

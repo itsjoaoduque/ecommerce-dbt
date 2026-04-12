@@ -10,18 +10,6 @@ with users as (
 
 ),
 
-deduped as (
-
-    select distinct
-        user_id,
-        order_count,
-        first_order_date,
-        last_order_date
-
-    from users
-
-),
-
 final as (
 
     select
@@ -32,7 +20,7 @@ final as (
         last_order_date,
         current_timestamp   as record_updated_at
 
-    from deduped
+    from users
 
 )
 

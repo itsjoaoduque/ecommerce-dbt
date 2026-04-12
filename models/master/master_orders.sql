@@ -1,3 +1,11 @@
+{{
+    config(
+        materialized = 'incremental',
+        unique_key = 'order_master_id',
+        on_schema_change = 'sync_all_columns'
+    )
+}}
+
 with orders as (
 
     select
@@ -14,6 +22,13 @@ with orders as (
         ) as rn
 
     from {{ ref('stg_ecommerce') }}
+
+    {% if is_incremental() %}
+        where purchase_date >= (
+            select {{ date_subtract_days('max(purchase_date)', 3) }}
+            from {{ this }}
+        )
+    {% endif %}
 
 ),
 

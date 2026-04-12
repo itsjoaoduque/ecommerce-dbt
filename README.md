@@ -25,27 +25,6 @@ Supports two targets out of the box:
 
 ## Quick Start
 
----
-
-## Snowflake Setup (first time only)
-
-Before running against Snowflake, a one-time setup is required to create the
-database, schemas, warehouse, role, and user that dbt expects.
-
-Run `scripts/snowflake_setup.sql` in a Snowflake worksheet **as ACCOUNTADMIN**
-(or any role with `CREATE` privileges):
-
-```sql
--- in Snowflake UI or SnowSQL:
--- 1. Open scripts/snowflake_setup.sql
--- 2. Run the entire script
-```
-
-Once done, fill in your `.env` with the credentials from the setup script and run:
-```bash
-make run_ecommerce_snowflake
-```
-
 ### 1. Clone & create a virtual environment
 ```bash
 python3 -m venv venv
@@ -61,7 +40,7 @@ cp .env.example .env
 
 ### 3. Run the pipeline
 
-Use `make` from the `ecommerce_master/` directory:
+Use `make` from the project directory:
 
 ```bash
 # DuckDB (local, no credentials needed)
@@ -76,7 +55,33 @@ Each command will:
 2. Load the seed file into the target warehouse (`dbt seed`)
 3. Build all models (`dbt run`)
 
-> The Python script simulates the sanitisation that would normally happen at ingestion time — in production, Fivetran or a custom connector would land data with clean column names. The script makes the seed portable across adapters without touching the original source file.
+### 4. Run snapshots (SCD2)
+
+```bash
+# DuckDB
+dbt snapshot --profiles-dir ./profiles --target duckdb
+
+# Snowflake
+source .env && dbt snapshot --profiles-dir ./profiles --target snowflake
+```
+
+> The Python script simulates the sanitisation that would normally happen at ingestion time — in production, Fivetran or a custom connector would land data with clean column names.
+
+---
+
+## Snowflake Setup (first time only)
+
+Before running against Snowflake, a one-time setup is required to create the
+database, schemas, warehouse, role, and user that dbt expects.
+
+Run `scripts/snowflake_setup.sql` in a Snowflake worksheet **as ACCOUNTADMIN**:
+
+```sql
+-- 1. Open scripts/snowflake_setup.sql
+-- 2. Run the entire script
+```
+
+Once done, fill in your `.env` with the credentials from the setup script.
 
 ---
 
@@ -127,7 +132,10 @@ ecommerce_master/
 │   ├── clean_csv.py                         # Sanitises CSV column names before seeding
 │   └── snowflake_setup.sql                  # One-time Snowflake setup (DB, schemas, role, user)
 ├── macros/
-│   └── parse_date.sql                       # Cross-database date parsing macro
+│   ├── parse_date.sql                       # Cross-database date parsing macro
+│   └── dateadd.sql                          # Cross-database date arithmetic macro
+├── snapshots/
+│   └── products_snapshot.sql               # SCD2 snapshot for master_products
 ├── models/
 │   ├── staging/
 │   │   ├── stg_ecommerce.sql                # Cleans and renames raw source columns
@@ -135,7 +143,7 @@ ecommerce_master/
 │   └── master/
 │       ├── master_users.sql                 # Deduplicated users with MD5 surrogate key
 │       ├── master_products.sql              # Normalised products with MD5 surrogate key
-│       ├── master_orders.sql                # Canonicalised orders with USD & GBP prices
+│       ├── master_orders.sql                # Incremental orders model with USD & GBP prices
 │       └── master.yml                       # Master tests & documentation
 └── seeds/
     ├── ecommerce_dataset_updated.csv        # Original raw source (disabled)
@@ -155,23 +163,26 @@ seeds/ecommerce_dataset_updated_clean.csv
         ├──────────────────┬──────────────────┐
         ▼                  ▼                  ▼
   master_users       master_products    master_orders
-    (table)             (table)           (table)
+    (table)             (table)         (incremental)
+                           │
+                           ▼
+                   products_snapshot    ← SCD2 history
+                     (snapshot)
 ```
 
 ---
 
 ## Cross-Database Compatibility
 
-Models use a custom `parse_date` macro that dispatches to the correct
-function per adapter:
+Models use custom macros that dispatch to the correct function per adapter:
 
-| Adapter | Function used |
-|---|---|
-| DuckDB | `strptime(col, '%d-%m-%Y')::date` |
-| Snowflake | `TO_DATE(col, 'DD-MM-YYYY')` |
+| Macro | DuckDB | Snowflake |
+|---|---|---|
+| `parse_date` | `strptime(col, fmt)::date` | `TO_DATE(col, fmt)` |
+| `date_subtract_days` | `col - INTERVAL 'N' DAY` | `DATEADD('day', -N, col)` |
 
-To add support for another adapter, add a `<adapter>__parse_date` implementation
-in `macros/parse_date.sql`.
+To add support for another adapter, add a `<adapter>__<macro_name>` implementation
+in the corresponding macro file.
 
 ---
 
@@ -199,15 +210,32 @@ Anyone can clone the repo and run immediately without touching `~/.dbt/profiles.
 Credentials are never hardcoded — all sensitive values come from environment variables.
 
 ### Deterministic keys (MD5)
-All master entities use `md5(source_id)` as their surrogate key. This ensures:
+All master entities use surrogate keys computed via `generate_surrogate_key()`. This ensures:
 - The same source record always produces the same master key (idempotent)
 - Keys are consistent across full refreshes and backfills
 - Foreign keys in `master_orders` are computed with the same function, guaranteeing
   referential integrity without joins at build time
 
-### Layered architecture (staging → master)
+### Layered architecture (staging → master → snapshots)
 - **Staging** (`view`): light rename/cast layer, no business logic
-- **Master** (`table`): deduplicated, enriched, ready for consumption
+- **Master** (`table` or `incremental`): deduplicated, enriched, ready for consumption
+- **Snapshots**: SCD2 history for slowly changing dimensions
+
+### Incremental model — master_orders
+`master_orders` uses `materialized: incremental` with a 3-day lookback window:
+```sql
+where purchase_date >= (
+    select date_subtract_days(max(purchase_date), 3)
+    from {{ this }}
+)
+```
+This handles late-arriving records without reprocessing the full history.
+Use `--full-refresh` to rebuild from scratch when needed.
+
+### SCD2 — products_snapshot
+`products_snapshot` tracks historical changes to `price_usd`, `discount_pct`, and `category`
+using `strategy: check`. Each time one of these values changes, the old record is closed
+(`dbt_valid_to` is set) and a new record is inserted (`dbt_valid_to = null`).
 
 ### Category normalisation
 `lower(trim(category))` in `master_products` prevents duplicate categories
@@ -224,25 +252,27 @@ caused by inconsistent capitalisation or whitespace in the source.
 
 ## Design Notes
 
-### SCD2 — best candidates in master_products
-The following attributes are most likely to change over time and benefit from SCD2 tracking:
-- `price_usd` — prices change frequently
-- `discount_pct` — promotional discounts are temporary
-- `category` — products can be recategorised
-
-Implementation would add `valid_from`, `valid_to`, and `is_current` columns,
-using dbt snapshots (`strategy: timestamp` or `strategy: check`).
-
 ### Late-arriving updates (status transitions, cancellations, refunds)
-In a production pipeline with order status transitions the recommended approach is:
+The dataset has no order status field. For a production pipeline with status transitions:
 1. **Append-only raw table** — never mutate source records; each status change
    arrives as a new row with a timestamp
 2. **`row_number()` deduplication** on `(order_id, updated_at desc)` in staging
    to surface the latest status per order
-3. **Incremental models** (`materialized: incremental`, `unique_key: order_master_id`)
-   in master to merge late arrivals without full table rebuilds
+3. **Incremental model** — `master_orders` already uses incremental materialisation
+   with a 3-day lookback to catch late arrivals
 4. **Refunds** modelled as a separate `master_refunds` entity referencing
    `order_master_id`, keeping the original order record immutable
+
+### Metrics for freshness and anomaly detection
+| Metric | Description | Alert threshold |
+|---|---|---|
+| `max(record_updated_at)` per model | Data freshness | > 1 hour behind schedule |
+| Row count delta vs previous run | Volume anomaly | ± 20% change |
+| Null rate per critical column | Data quality drift | > 0% on PK/FK columns |
+| Distinct category count | Schema drift | Any new unexpected value |
+| Order count per day | Business anomaly | > 3σ from 30-day average |
+
+These would be implemented via dbt's `freshness` blocks on sources and dbt Elementary.
 
 ---
 
@@ -250,11 +280,9 @@ In a production pipeline with order status transitions the recommended approach 
 
 1. **Currency seed** — a `seeds/exchange_rates.csv` with daily USD→GBP rates
    joined on `purchase_date` instead of a fixed 0.75 rate
-2. **Incremental models** — replace full table refreshes with
-   `materialized: incremental` on `master_orders` for production scalability
-3. **GDPR delete handling** — a `deleted_users` seed/table checked in
+2. **GDPR delete handling** — a `deleted_users` seed/table checked in
    `master_users` to null out PII fields on matched `user_source_id`
-4. **dbt Elementary** — open-source observability package for automated
+3. **dbt Elementary** — open-source observability package for automated
    anomaly detection and a data health dashboard
-5. **Reusable macros** — `generate_surrogate_key()` macro to standardise
-   MD5 key generation across all models
+4. **CI/CD** — GitHub Actions pipeline running `dbt run` + `dbt test` + `dbt snapshot`
+   against an ephemeral Snowflake schema on every pull request
